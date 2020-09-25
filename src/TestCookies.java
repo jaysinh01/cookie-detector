@@ -13,6 +13,7 @@ class CookieTest {
 
     private static String cookieString;
     private static String editedString;
+    private static boolean isThereAv = true;
 
 
     public static boolean checkCookieHttpAv(String av){
@@ -28,14 +29,10 @@ class CookieTest {
         return Pattern.compile(pathAv).matcher(av).matches();
     }
     public static boolean checkCookieDomainAv(String av){
-        String digit = "[0-9]";
-        String letter = "[A-Za-z]";
-        String letDig = letter + "|" + digit;
-        String ldhStr = "(" + letDig + "|" + "-" + ")" + "+";
-        String label = letter + "(" + ldhStr + letDig + "|" + letDig + ")" + "?";
-        String subDomain = label + "|" + "(" + label + "." + label + ")" +"*";
-        String domain = subDomain + "|." + subDomain + "|" + "";
-        String domainAV = "Domain=" + domain;
+        String label = "([A-Za-z])([0-9a-zA-Z]|-[0-9a-zA-Z])*";
+        String subDomain = "(" + label + ")" + "(\\." + label + ")*";
+        String domain = "(" + subDomain + "|\\." + subDomain + "|)";
+        String domainAV = "(" + "Domain=" + ")"+ domain;
 
         return Pattern.compile(domainAV).matcher(av).matches();
     }
@@ -96,9 +93,10 @@ class CookieTest {
         if (octetFinder.find()){
             octet = editedString.substring(0, octetFinder.start());
             editedString = editedString.substring(octetFinder.end());
+            isThereAv = true;
         }else{
             octet = editedString;
-            editedString = "";
+            isThereAv = false;
         }
 
         if (!octet.isEmpty() && octet.charAt(0) == '\"'){
@@ -117,7 +115,7 @@ class CookieTest {
     public static boolean verifyToken(String token){
         boolean result = false;
         if (!token.isEmpty()){
-            Matcher invalidChars = Pattern.compile("\\p{Cntrl}\\\\\\?\\(\\)<>@,;:/\\\"\\[\\]=\\{\\}\\t\\s").
+            Matcher invalidChars = Pattern.compile("\\p{Cntrl}|\\\\|\\?|\\(|\\)|<|>|@|,|;|:|\\/|\\\"|\\[|\\]|=|\\{|\\}|\\t|\\s").
                     matcher(token);
             if (!invalidChars.find()){
                 result = true;
@@ -130,7 +128,7 @@ class CookieTest {
         Matcher equalSign = Pattern.compile("=").matcher(editedString);
         boolean result = false;
         if (equalSign.find()){
-            result = verifyToken(editedString.substring(0, equalSign.end()));
+            result = verifyToken(editedString.substring(0, equalSign.start()));
             editedString = editedString.substring(equalSign.end());
         }
         if (result){
@@ -177,7 +175,7 @@ class CookieTest {
             legal = checkCookiePair();
         }
         //todo: check *( ";" SP cookie-av )
-        if (legal){
+        if (legal & isThereAv){
             legal = checkCookieAv();
         }
         //todo: check for cookie-av
@@ -191,7 +189,10 @@ class CookieTest {
      */
     public static void main(String[] args) {
         String [] cookies = {
+
             // Legal cookies:
+
+
             "Set-Cookie: ns1=\"alss/0.foobar^\"",                                           // 01 name=value
             "Set-Cookie: ns1=",                                                             // 02 empty value
             "Set-Cookie: ns1=\"alss/0.foobar^\"; Expires=Tue, 18 Nov 2008 16:35:39 GMT",    // 03 Expires=time_stamp
@@ -201,8 +202,8 @@ class CookieTest {
             // Illegal cookies:
             "Set-Cookie:",                                              // 07 empty cookie-pair
             "Set-Cookie: sd",                                           // 08 illegal cookie-pair: no "="
-            "Set-Cookie: =alss/0.foobar^",                              // 09 illegal cookie-pair: empty name
-            "Set-Cookie: ns@1=alss/0.foobar^",                          // 10 illegal cookie-pair: illegal name
+                "Set-Cookie: =alss/0.foobar^",    // 09 illegal cookie-pair: empty name
+                "Set-Cookie: ns@1=alss/0.foobar^",                          // 10 illegal cookie-pair: illegal name
             "Set-Cookie: ns1=alss/0.foobar^;",                          // 11 trailing ";"
             "Set-Cookie: ns1=; Expires=Tue 18 Nov 2008 16:35:39 GMT",   // 12 illegal Expires value
             "Set-Cookie: ns1=alss/0.foobar^; Max-Age=01",               // 13 illegal Max-Age: starting 0
